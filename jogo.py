@@ -1,5 +1,12 @@
 import arcade
 import random
+import os
+
+# Garante que o Python encontre as imagens na pasta certa
+try:
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+except NameError:
+    pass
 
 
 class Jogador(arcade.Sprite):
@@ -18,6 +25,7 @@ class Jogador(arcade.Sprite):
         elif self.change_x < 0:
             self.texture = self.textura_esquerda
 
+        # Limites da tela
         if self.right > 800:
             self.change_x = 0
             self.right = 800
@@ -106,7 +114,15 @@ class JanelaJogo(arcade.Window):
         super().__init__(800, 600, "Jogo com Inimigos")
         self.fundo = arcade.load_texture("fundo.png")
         self.movimento = 3
+        
+        # Inicia o jogo pela primeira vez
+        self.setup()
+
+    def setup(self):
+        """ Configura ou reinicia todas as variáveis do jogo """
         self.pontuacao = 0
+        self.cronometro = 0.0      # DESAFIO 2: Variável do tempo
+        self.jogo_acabou = False   # DESAFIO 3: Estado do jogo
 
         self.personagem = Jogador()
         self.personagem.center_x = 400
@@ -119,13 +135,10 @@ class JanelaJogo(arcade.Window):
 
         for i in range(random.randint(20, 50)):
             moeda = Moeda()
-
             moeda.center_x = random.randint(50, 750)
             moeda.center_y = random.randint(50, 550)
-
             moeda.change_x = random.choice([-2, -1, 1, 2])
             moeda.change_y = random.choice([-2, -1, 1, 2])
-
             self.lista_moeda.append(moeda)
 
         self.moeda_especial = MoedaEspecial()
@@ -141,17 +154,13 @@ class JanelaJogo(arcade.Window):
 
         for i in range(5):
             inimigo = Inimigo()
-
             inimigo.center_x = random.randint(50, 750)
             inimigo.center_y = random.randint(50, 550)
-
             self.lista_inimigos.append(inimigo)
 
         self.inimigo_especial = InimigoEspecial()
-
         self.inimigo_especial.center_x = random.randint(50, 750)
         self.inimigo_especial.center_y = random.randint(50, 550)
-
         self.lista_inimigos.append(self.inimigo_especial)
 
     def on_draw(self):
@@ -160,7 +169,7 @@ class JanelaJogo(arcade.Window):
             texture=self.fundo,
             rect=arcade.XYWH(
                 x=800 / 2,
-                y= 600 / 2,
+                y=600 / 2,
                 width=800,
                 height=600
             )
@@ -170,53 +179,67 @@ class JanelaJogo(arcade.Window):
         self.lista_moeda.draw()
         self.lista_inimigos.draw()
 
-        arcade.draw_text(
-            f"Moedas Coletadas: {self.pontuacao}",
-            10,
-            570,
-            arcade.color.WHITE,
-            14
-        )
+        # Mostra os textos na tela
+        arcade.draw_text(f"Moedas Coletadas: {self.pontuacao}", 10, 570, arcade.color.WHITE, 14)
+        
+        # DESAFIO 2: Mostra o cronômetro na tela
+        arcade.draw_text(f"Tempo: {self.cronometro:.1f}s", 10, 545, arcade.color.WHITE, 14)
 
+        # DESAFIO 3: Tela de fim de jogo
+        if self.jogo_acabou:
+            arcade.draw_text("FIM DE JOGO!", 400, 350, arcade.color.YELLOW, 40, anchor_x="center")
+            arcade.draw_text(f"Pontos Finais: {self.pontuacao} | Tempo: {self.cronometro:.1f}s", 400, 300, arcade.color.WHITE, 18, anchor_x="center")
+            arcade.draw_text("Aperte 'R' para Recomeçar ou 'ESC' para Sair", 400, 250, arcade.color.LIGHT_GRAY, 14, anchor_x="center")
 
     def on_update(self, delta_time):
-        self.sprite_jogador.update()
-        self.lista_moeda.update()
-        self.lista_inimigos.update()
+        # Só roda a lógica se o jogo NÃO tiver acabado
+        if not self.jogo_acabou:
+            # DESAFIO 2: Atualiza o tempo usando o delta_time
+            self.cronometro += delta_time
 
-        moedas_colididas = arcade.check_for_collision_with_list(
-            self.personagem,
-            self.lista_moeda
-        )
+            self.sprite_jogador.update(delta_time)
+            self.lista_moeda.update(delta_time)
+            self.lista_inimigos.update(delta_time)
 
-        for moeda in moedas_colididas:
-            if moeda == self.moeda_especial:
-                self.pontuacao += 5
-            else:
-                self.pontuacao += 1
+            # Colisão com as moedas
+            moedas_colididas = arcade.check_for_collision_with_list(
+                self.personagem,
+                self.lista_moeda
+            )
 
-            moeda.remove_from_sprite_lists()
+            for moeda in moedas_colididas:
+                if moeda == self.moeda_especial:
+                    self.pontuacao += 5
+                else:
+                    self.pontuacao += 1
 
-        inimigos_colididos = arcade.check_for_collision_with_list(
-            self.personagem,
-            self.lista_inimigos
-        )
+                moeda.remove_from_sprite_lists()
 
-        for inimigo in inimigos_colididos:
+            # DESAFIO 2: Se coletar todas as moedas, o jogo para
+            if len(self.lista_moeda) == 0:
+                self.jogo_acabou = True
 
-            if inimigo == self.inimigo_especial:
+            # Colisão com os inimigos
+            inimigos_colididos = arcade.check_for_collision_with_list(
+                self.personagem,
+                self.lista_inimigos
+            )
 
-                inimigo.remove_from_sprite_lists()
+            for inimigo in inimigos_colididos:
+                if inimigo == self.inimigo_especial:
+                    inimigo.remove_from_sprite_lists()
 
-                self.inimigo_especial = InimigoEspecial()
+                    self.inimigo_especial = InimigoEspecial()
+                    self.inimigo_especial.center_x = random.randint(50, 750)
+                    self.inimigo_especial.center_y = random.randint(50, 550)
 
-                self.inimigo_especial.center_x = random.randint(50, 750)
-                self.inimigo_especial.center_y = random.randint(50, 550)
-
-                self.lista_inimigos.append(self.inimigo_especial)
-
-            else:
-                print("Você colidiu com um inimigo!")
+                    self.lista_inimigos.append(self.inimigo_especial)
+                else:
+                    # DESAFIO 1: Perde 1 ponto ao colidir com o inimigo normal
+                    self.pontuacao -= 1
+                    # Teleporta o inimigo para não tirar vários pontos grudado no jogador
+                    inimigo.center_x = random.randint(50, 750)
+                    inimigo.center_y = random.randint(50, 550)
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.A or key == arcade.key.LEFT:
@@ -233,6 +256,10 @@ class JanelaJogo(arcade.Window):
 
         if key == arcade.key.ESCAPE:
             self.close()
+
+        # DESAFIO 3: Se o jogo acabou, apertar 'R' reinicia tudo
+        if key == arcade.key.R and self.jogo_acabou:
+            self.setup()
 
     def on_key_release(self, key, modifiers):
         if key in [arcade.key.A, arcade.key.LEFT,
